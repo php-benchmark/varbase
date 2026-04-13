@@ -1,0 +1,13 @@
+# Custom install styling.
+install-styling:
+  css:
+    theme:
+      css/theme/install-page.css: { }
+
+# Custom install scripts.
+install-scripts:
+  js:
+    js/install-scripts.js: { }
+  dependencies:
+    - core/jquery
+    - gin/gin_accent

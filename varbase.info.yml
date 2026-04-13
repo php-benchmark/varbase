@@ -1,0 +1,27 @@
+name: Varbase
+type: profile
+description: Varbase is an enhanced Drupal distribution with a lot of necessities.
+core_version_requirement: ~11.3.0
+project: varbase
+distribution:
+  name: Varbase
+  install:
+    theme: varbase_installer_theme
+version: 10.1.x-dev
+install:
+  - system
+  - user
+  - node
+  - block
+  - block_content
+  - datetime
+  - help
+  - image
+  - views
+  - file
+themes:
+  - gin
+  - vartheme_bs5
+
+interface translation project: varbase
+interface translation server pattern: profiles/contrib/varbase/translations/%language.po

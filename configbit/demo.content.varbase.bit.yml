@@ -1,0 +1,16 @@
+# ==============================================================================
+# List of varbase demo components, which they will be listed under the
+# Extra components installation step, in the Demo content section.
+# ==============================================================================
+config_bit:
+  type: list
+  for: varbase.info.yml
+  when:
+    show_demo: true
+    list:
+      dependencies:
+        varbase_demo:
+          title: 'Varbase Demo'
+          description: '<p>Installing demo content gives you a taste of what Varbase offers and its key features. It''s a handy way to explore Varbase''s functionality and see it in action.</p><div class="messages-list__item messages messages--info"><div class="messages__header"><h2 id="message-status-title" class="messages__title">Please note:</h2></div><div class="messages__content">You have the option to uncheck the Varbase Demo box to select specific recipes. Varbase Demo enables all features for demonstration purposes.</p></div></div>'
+          selected: true
+          config_form: false
