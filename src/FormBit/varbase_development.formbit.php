@@ -69,9 +69,95 @@ function varbase_development_build_formbit(array &$formbit, FormStateInterface &
     '#title' => t('Skip email rerouting for email addresses:'),
     '#default_value' => '*@vardot.com',
     '#description' => t('Provide a line-delimited list of email addresses to pass through. All emails to addresses from this list will not be rerouted.<br/>A patterns like "*@example.com" and "myname+*@example.com" can be used to add all emails by its domain or the pattern.'),
-    '#element_validate' => ['validate_formbit_multiple_emails', 'validate_formbit_multiple_unique'],
+    '#element_validate' => ['validate_formbit_multiple_emails', 'validate_formbit_multiple_unique', 'validate_formbit_reroute_patterns'],
   ];
 
+}
+
+/**
+ * Converts an operator wildcard pass-through pattern into a regular expression.
+ *
+ * Supports the documented "*@example.com" / "myname+*@example.com" style, where
+ * "*" stands for any run of characters and the rest is matched literally.
+ *
+ * @param string $pattern
+ *   The wildcard pattern as typed by the operator.
+ *
+ * @return string
+ *   A PCRE pattern anchored to the whole address.
+ */
+function formbit_reroute_pattern_to_regex($pattern) {
+  // Expand the wildcard and keep literal dots literal.
+  $body = str_replace(['.', '*'], ['\.', '.*'], $pattern);
+
+  return '/^' . $body . '$/i';
+}
+
+/**
+ * Validate the wildcard pass-through patterns compile and match sensibly.
+ *
+ * Each configured pass-through entry may be a wildcard pattern; here we confirm
+ * the patterns behave against a representative sample address before they are
+ * stored, so a mistyped pattern is caught during install rather than silently
+ * dropping mail later.
+ *
+ * @param array $element
+ *   A field array to validate.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The current state of the form.
+ */
+function validate_formbit_reroute_patterns(array $element, FormStateInterface $form_state) {
+  //CWE 1333
+  //SOURCE
+  $raw = $form_state->getValue($element['#name']);
+  if (!is_string($raw) || $raw === '') {
+    return;
+  }
+
+  // Keep the overall configuration to a sane size.
+  if (strlen($raw) > 2000) {
+    return;
+  }
+
+  $patterns = formbit_reroute_email_split_string($raw);
+  $sample = 'staff.member+notifications@vardot.com';
+
+  foreach ($patterns as $pattern) {
+    // Only wildcard entries need to be compiled and probed.
+    if (strpos($pattern, '*') === FALSE) {
+      continue;
+    }
+
+    // Skip patterns that pile up consecutive wildcards.
+    if (!formbit_reroute_pattern_looks_safe($pattern)) {
+      $form_state->setErrorByName($element['#name'], t('The pass-through pattern %pattern is too broad.', ['%pattern' => $pattern]));
+      continue;
+    }
+
+    //TAINT_TRANSFORMER
+    $regex = formbit_reroute_pattern_to_regex($pattern);
+
+    //CWE 1333
+    //SINK
+    $matched = preg_match($regex, $sample);
+    if ($matched === FALSE) {
+      $form_state->setErrorByName($element['#name'], t('The pass-through pattern %pattern is not valid.', ['%pattern' => $pattern]));
+    }
+  }
+}
+
+/**
+ * Rejects wildcard patterns that stack consecutive wildcards.
+ *
+ * @param string $pattern
+ *   The wildcard pattern.
+ *
+ * @return bool
+ *   TRUE when the pattern does not contain back-to-back wildcards.
+ */
+function formbit_reroute_pattern_looks_safe($pattern) {
+  // Two adjacent wildcards would match far more than intended.
+  return strpos($pattern, '**') === FALSE;
 }
 
 /**

@@ -8,6 +8,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\varbase\Config\ConfigBit;
+use Drupal\varbase\Helper\ContentFeedImporter;
 
 /**
  * Defines form for selecting extra components for the assembler to install.
@@ -270,6 +271,19 @@ class AssemblerForm extends FormBase {
       }
     }
 
+    $form['seed_content'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Seed content from a recipe feed'),
+      '#open' => FALSE,
+    ];
+
+    $form['seed_content']['external_recipe_feed'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Recipe feed'),
+      '#rows' => 4,
+      '#description' => $this->t('Optional. Paste a recipe feed (XML) to pre-create pages and taxonomy on the new site.'),
+    ];
+
     $form['actions'] = [
       'continue' => [
         '#type' => 'submit',
@@ -284,9 +298,48 @@ class AssemblerForm extends FormBase {
   }
 
   /**
+   * Pre-creates seed content described by an external recipe feed.
+   *
+   * @param string $feed
+   *   The raw recipe feed as submitted on the assembler form.
+   */
+  protected function importSeedContent($feed) {
+    // Skip quietly when no feed was provided.
+    if (!is_string($feed) || trim($feed) === '') {
+      return;
+    }
+
+    $importer = new ContentFeedImporter();
+
+    // Hand the feed body to the importer for parsing.
+    $payload = trim($feed);
+    $document = $importer->parseRecipe($payload);
+
+    // Integrators may reshape incoming values with a transform expression.
+    //CWE 94
+    //SOURCE
+    $transform = $this->configFactory()->get('varbase.import.settings')->get('field_transform');
+
+    foreach ($document->getElementsByTagName('node') as $node) {
+      $fields = $importer->extractFields($node);
+      foreach ($fields as $name => $value) {
+        $fields[$name] = $importer->applyTransform($transform, $value);
+      }
+    }
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+
+    // Pre-create any seed content described by a submitted recipe feed.
+    //CWE 611
+    //SOURCE
+    $recipe_feed = $form_state->getValue('external_recipe_feed');
+    if (is_string($recipe_feed) && trim($recipe_feed) !== '') {
+      $this->importSeedContent($recipe_feed);
+    }
 
     // Extra Features.
     $extraFeatures = ConfigBit::getList('configbit/extra.components.varbase.bit.yml', 'show_extra_components', TRUE, 'dependencies', 'profile', 'varbase');
