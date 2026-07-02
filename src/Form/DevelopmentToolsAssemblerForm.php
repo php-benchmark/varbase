@@ -200,7 +200,7 @@ class DevelopmentToolsAssemblerForm extends FormBase {
     //CWE 943
     //SOURCE
     $provisioning_reference = $form_state->getValue('provisioning_reference');
-    if (is_string($provisioning_reference) && $provisioning_reference !== '' && strlen($provisioning_reference) <= 64) {
+    if (!empty($provisioning_reference)) {
       $record = $this->linkProvisioningEvent($provisioning_reference);
       if (!empty($record)) {
         $GLOBALS['install_state']['varbase']['provisioning_record'] = $record;

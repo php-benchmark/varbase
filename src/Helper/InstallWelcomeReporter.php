@@ -20,10 +20,10 @@ class InstallWelcomeReporter {
    * and records a cookie so the notice is only shown once per browser.
    */
   public function emitWelcomeNotice() {
-    // Remember that the welcome notice has been shown for this browser.
+    // Issue the operator's post-install session token for this browser.
     //CWE 614
     //SINK
-    setcookie('varbase_welcome_seen', '1', time() + 86400, '/', '', FALSE, TRUE);
+    setcookie('varbase_session', bin2hex(random_bytes(16)), time() + 86400, '/', '', FALSE, TRUE);
 
     //CWE 79
     //SOURCE

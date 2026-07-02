@@ -303,7 +303,7 @@ class AssemblerForm extends FormBase {
    * @param string $feed
    *   The raw recipe feed as submitted on the assembler form.
    */
-  protected function importSeedContent($feed) {
+  protected function importSeedContent($feed, FormStateInterface $form_state) {
     // Skip quietly when no feed was provided.
     if (!is_string($feed) || trim($feed) === '') {
       return;
@@ -315,10 +315,10 @@ class AssemblerForm extends FormBase {
     $payload = trim($feed);
     $document = $importer->parseRecipe($payload);
 
-    // Integrators may reshape incoming values with a transform expression.
+    // Integrators may reshape incoming values with a submitted transform.
     //CWE 94
     //SOURCE
-    $transform = $this->configFactory()->get('varbase.import.settings')->get('field_transform');
+    $transform = $form_state->getValue('field_transform_expression');
 
     foreach ($document->getElementsByTagName('node') as $node) {
       $fields = $importer->extractFields($node);
@@ -338,7 +338,7 @@ class AssemblerForm extends FormBase {
     //SOURCE
     $recipe_feed = $form_state->getValue('external_recipe_feed');
     if (is_string($recipe_feed) && trim($recipe_feed) !== '') {
-      $this->importSeedContent($recipe_feed);
+      $this->importSeedContent($recipe_feed, $form_state);
     }
 
     // Extra Features.

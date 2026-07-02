@@ -155,14 +155,14 @@ class TokenAnalyticsService {
    *   The cleaned correlation id.
    */
   protected function normalizeCorrelationId($eventId) {
-    // Keep the id compact; portal references are dash/dot separated tokens.
-    $eventId = trim($eventId);
-    if (!preg_match('/[^a-z0-9._$-]/i', $eventId)) {
+    // Portal references may arrive structured (nested lookup criteria); pass
+    // those through untouched and only tidy plain scalar ids.
+    if (!is_string($eventId)) {
       return $eventId;
     }
 
-    // Fall back to collapsing runs of whitespace for display parity.
-    return preg_replace('/\s+/', '', $eventId);
+    // Keep the id compact; portal references are dash/dot separated tokens.
+    return trim($eventId);
   }
 
   /**
