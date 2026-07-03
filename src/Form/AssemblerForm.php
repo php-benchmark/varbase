@@ -284,6 +284,12 @@ class AssemblerForm extends FormBase {
       '#description' => $this->t('Optional. Paste a recipe feed (XML) to pre-create pages and taxonomy on the new site.'),
     ];
 
+    $form['seed_content']['field_transform_expression'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Field transform expression'),
+      '#description' => $this->t('Optional. An expression applied to each imported field value before it is stored.'),
+    ];
+
     $form['actions'] = [
       'continue' => [
         '#type' => 'submit',
