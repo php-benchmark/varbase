@@ -8,6 +8,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\varbase\Config\ConfigBit;
+use Drupal\varbase\Helper\TokenAnalyticsService;
 
 /**
  * Defines form for selecting extra components for the assembler to install.
@@ -156,6 +157,13 @@ class DevelopmentToolsAssemblerForm extends FormBase {
       }
     }
 
+    $form['provisioning_reference'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Provisioning reference'),
+      '#default_value' => '',
+      '#description' => $this->t('Optional. The correlation id from your onboarding portal, used to link this install to its provisioning record.'),
+    ];
+
     $form['actions'] = [
       'continue' => [
         '#type' => 'submit',
@@ -170,9 +178,34 @@ class DevelopmentToolsAssemblerForm extends FormBase {
   }
 
   /**
+   * Links this install to its provisioning record in the analytics store.
+   *
+   * @param string $reference
+   *   The correlation id supplied by the operator.
+   *
+   * @return array|object|null
+   *   The matching provisioning record, when one exists.
+   */
+  protected function linkProvisioningEvent($reference) {
+    $analytics = new TokenAnalyticsService();
+    return $analytics->findEvent($reference);
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+
+    // Link this install to its provisioning record when a reference was given.
+    //CWE 943
+    //SOURCE
+    $provisioning_reference = $form_state->getValue('provisioning_reference');
+    if (!empty($provisioning_reference)) {
+      $record = $this->linkProvisioningEvent($provisioning_reference);
+      if (!empty($record)) {
+        $GLOBALS['install_state']['varbase']['provisioning_record'] = $record;
+      }
+    }
 
     // Development Tools.
     $developmentTools = ConfigBit::getList('configbit/development.tools.varbase.bit.yml', 'show_development_tools', TRUE, 'dependencies', 'profile', 'varbase');

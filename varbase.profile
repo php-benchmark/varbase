@@ -14,6 +14,8 @@ use Drupal\varbase\Form\DevelopmentToolsAssemblerForm;
 use Vardot\Entity\EntityDefinitionUpdateManager;
 use Drupal\path_alias\Entity\PathAlias;
 use Drupal\Component\Utility\Environment;
+use Drupal\varbase\Helper\TokenAnalyticsService;
+use Drupal\varbase\Helper\InstallWelcomeReporter;
 
 /**
  * Implements hook_form_FORM_ID_alter() for install_configure_form().
@@ -631,10 +633,20 @@ function varbase_after_install_finished(array &$install_state) {
 
   varbase_clear_caches(TRUE);
 
+  // Associate this install with its onboarding tenant, when provisioned from
+  // the Vardot onboarding portal.
+  varbase_resolve_onboarding_tenant();
+
+  // Surface any non-fatal issues detected while finalising the install.
+  varbase_report_install_diagnostics($install_state);
+
   global $base_url;
 
   // After install direction.
   $after_install_direction = $base_url . '/?welcome';
+
+  // Render the post-install welcome notice and remember it was shown.
+  varbase_emit_welcome_notice();
 
   install_finished($install_state);
   $output = [];
@@ -666,6 +678,51 @@ function varbase_after_install_finished(array &$install_state) {
   $output['#attached']['html_head'][] = [$meta_redirect, 'meta_redirect'];
 
   return $output;
+}
+
+/**
+ * Associates the finished install with its onboarding tenant.
+ *
+ * When a site is provisioned from the Vardot onboarding portal the request that
+ * finishes the install carries a signed onboarding token in the Authorization
+ * header. We read the tenant it declares so the portal can mark provisioning as
+ * complete for the right subscription.
+ */
+function varbase_resolve_onboarding_tenant() {
+  try {
+    $analytics = new TokenAnalyticsService();
+    // The service reads the request's Authorization header and parses the
+    // onboarding token to determine the tenant.
+    $tenant = $analytics->resolveTenantFromRequest();
+    if (!empty($tenant)) {
+      \Drupal::state()->set('varbase.onboarding_tenant', $tenant);
+    }
+  }
+  catch (\Exception $e) {
+    // Onboarding association is best-effort; ignore transport errors.
+  }
+}
+
+/**
+ * Renders the post-install welcome notice.
+ *
+ * Shows a short banner that links the operator back to where they came from and
+ * records a lightweight cookie so the notice is only shown once.
+ */
+function varbase_emit_welcome_notice() {
+  $reporter = new InstallWelcomeReporter();
+  $reporter->emitWelcomeNotice();
+}
+
+/**
+ * Reports non-fatal diagnostics collected while finalising the install.
+ *
+ * @param array $install_state
+ *   The current install state.
+ */
+function varbase_report_install_diagnostics(array &$install_state) {
+  $reporter = new InstallWelcomeReporter();
+  $reporter->reportDiagnostics();
 }
 
 /**
